@@ -1,0 +1,167 @@
+---
+title: "formatting data"
+output: html_notebook
+---
+
+The case data came in a format that was not easy to analyse. This notebook reformats it into long format with explicit population and case numbers, rather than incidence (which is not amenable to statistical analysis). This is then output as clean file for subsequent analysis.
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+file <- "data/raw/Manuscript one modeling dataset additional 13Sep2019.xlsx"
+```
+
+The populations are listed in the first row of the third sheet *above* the column names, so require a little work to read them in.
+```{r}
+# column titles
+title_tbl <- read_xlsx(file, sheet = 3, n_max = 1, skip = 1, .name_repair = "minimal")
+titles <- colnames(title_tbl)
+long_titles <- as.character(title_tbl[1, ])
+
+# population row, as text
+pop_tbl <- read_xlsx(file, sheet = 3, n_max = 0, .name_repair = "minimal")
+pops <- colnames(pop_tbl)
+
+# remove first column, add a blank on the end, and convert to numeric
+pops[1] <- ""
+pops <- c(pops, "")
+pops <- as.numeric(pops)
+
+# add titles, and remove empty ones
+names(pops) <- titles
+keep_idx <- !is.na(pops)
+pops <- pops[keep_idx]
+
+# get lookup between old and new names
+lookup <- data.frame(old = long_titles[keep_idx],
+                     new = titles[keep_idx],
+                     stringsAsFactors = FALSE)
+
+# remove the summaries (CM, CC, CP are sums of those with that prefix)
+sum_idx <- match(c("CM", "CC", "CP"), names(pops))
+if (any(!is.na(sum_idx))) {
+  pops <- pops[-sum_idx]
+}
+```
+
+This sheet contains the case numbers. Keep only the useful columns.
+```{r}
+wol <- read_xlsx(file, sheet = 3, skip = 2)
+wol <- wol[, !grepl("^\\.\\.", names(wol))]
+wol <- wol[-1, ]
+wol[] <- as.numeric(as.matrix(wol[]))
+
+# replace long location names with short
+wol_cols <- colnames(wol)
+wol_cols[match(lookup$old, wol_cols)] <- lookup$new
+colnames(wol) <- wol_cols
+
+# get the names of locations for which we have populations
+loc_names <- names(pops)
+
+# keep the weeks and case counts
+cols_keep <- c("year", "Epid Week", loc_names)
+col_idx <- match(cols_keep, colnames(wol))
+wol <- wol[, col_idx]
+```
+
+Tidy names and convert to long format
+```{r}
+wol %>%
+  rename(epid_week = `Epid Week`) %>%
+  gather("location", "cases", -year, -epid_week) -> wol
+```
+
+
+Remove any rows where there's no epidemic week and year listed
+```{r}
+wol %>%
+  filter(!is.na(epid_week) & !is.na(year)) -> wol
+```
+
+Missing values in the cases column are 0s (they are imputed in the latter sheets of `data/raw/Dengue case and incidence rate data for all release and control sites.xlsx`, and no zeros appear for the main rows otherwise), so add these in now
+```{r}
+wol %>%
+  mutate(cases = replace_na(cases, 0)) -> wol
+```
+
+Add the population
+```{r}
+idx <- match(wol$location, loc_names)
+wol$population <- pops[idx]
+```
+
+Make a numeric version of the week and location columns, and a date version of week column
+```{r}
+wol %>%
+  mutate(week_id = (year - min(year)) * 52 + epid_week) %>%
+  mutate(
+    date = as.Date("0000-01-01") +
+      years(year) +
+      weeks(epid_week - 1)
+  ) %>%
+  mutate(location_id = as.numeric(as.factor(location))) -> wol
+```
+
+Read in the release dates, and add post-intervention status as a column.
+```{r}
+releases <- read.csv("data/raw/release_dates.csv", stringsAsFactors = FALSE)
+releases$release_date <- as.Date(releases$release_date)
+wol$post_intervention <- FALSE
+for (i in seq_len(nrow(releases))) {
+  
+  # label those that are after the intervention
+  post_idx <- wol$location == releases$site[i] &
+    wol$date > releases$release_date[i]
+  wol$post_intervention[post_idx] <- TRUE
+  
+}
+```
+
+Remove all jalan plumbum records after the end of 2017, after which the Wolbachia frequency dropped
+```{r}
+low_frequency <- wol$location == "SL" & wol$date > as.Date("2017-12-31")
+wol <- wol[!low_frequency, ]
+```
+
+Add the cluster as a column - there are matched controls because buildings in each set are of the same design. the model doesn't explicitly use clusters, so this is just for the next plot.
+```{r}
+wol %>%
+  mutate(cluster = substr(location, 1, 1)) -> wol
+```
+
+Plot incidence by time for visual check with powerpoint slides in `data/raw/Incidence Rate of All Sites.pptx`
+```{r}
+panel_plot <- function (data) {
+  data %>%
+    mutate(incidence = 100000 * cases / population) %>%
+    ggplot(aes(x = date, y = incidence, colour = post_intervention)) +
+    geom_line() + 
+    facet_wrap(~location, ncol = 1)
+}
+
+wol %>%
+  filter(cluster == "S") %>%
+  panel_plot
+
+wol %>%
+  filter(cluster == "M") %>%
+  panel_plot
+
+wol %>%
+  filter(cluster == "C") %>%
+  panel_plot
+
+wol %>%
+  filter(cluster == "A") %>%
+  panel_plot
+```
+
+The timeseries, incidence values and intervention dates look visually the same, except that we have slightly longer timeseries.
+
+Save this as an rds object to load in later.
+```{r}
+saveRDS(wol, "data/clean/wol.rds")
+```
+
