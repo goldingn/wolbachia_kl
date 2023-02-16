@@ -10,9 +10,10 @@ n_sites <- max(wol$location_id)
 
 # build greta model
 library(greta)
+library(here)
 
 # load code for efficient-ish AR(1) models, via a few methods
-source("R/ar1ify.R")
+source(here("R/ar1ify.R"))
 
 # build AR(1) timeseries effects
 rho <- uniform(-1, 1)
@@ -41,6 +42,11 @@ intervention_vec <- intervention_effect * wol$post_intervention
 # combine into linear predictor
 eta <- baseline_effect_vec + intervention_vec
 
+# gam(cases ~ location_id +
+ # post_intervention +
+ # s(week_id, location_id, bs = "ar1"),
+ # family = poisson())
+
 # add offset of population, scaled so that a prior mean for eta of 0 corresponds
 # with the mean number of cases. Note that this does not affect inference, since
 # the offset is combined with the mean temporal effect, however it will make MCMC easier.
@@ -64,13 +70,18 @@ draws <- mcmc(m,
 
 draws <- extra_samples(draws, 2000)
 
+# save draws
+# readr::write_rds(draws, here("data/clean/wol_draws.rds"))
+# load draws
+# draws <- readr::read_rds(here("data/clean/wol_draws.rds"))
+
 # check convergence
 plot(draws)
 coda::gelman.diag(draws)
 coda::effectiveSize(draws)
 
 # do posterior simulations (calculate size and prob, stick in rnbinom), summarise and plot as in INLA analysis
-means <- as.matrix(calculate(mean, draws))
+means <- as.matrix(calculate(mean, values = draws))
 
 y_preds <- means * NA
 y_preds[] <- rpois(prod(dim(means)), means[])
@@ -106,42 +117,48 @@ panel_plot <- function (data) {
            incidence_lower = 100000 * lower / population,
            incidence_upper = 100000 * upper / population) %>%
     ggplot(aes(x = date, y = incidence, colour = post_intervention)) +
-    geom_line() + 
+    geom_line() +
     geom_ribbon(aes(ymin = incidence_lower,
                     ymax = incidence_upper),
                 linetype = 0,
                 alpha = 0.3) +
-    facet_wrap(~location, ncol = 1)
+    facet_wrap(~location, ncol = 1) +
+    theme(legend.position = "bottom")
 }
 
 library(ggplot2)
 library(tidyverse)
-wol_out %>%
-  filter(cluster == "A") %>%
-  panel_plot
 
-wol_out %>%
+gg_wol_out_a <- wol_out %>%
+  filter(cluster == "A") %>%
+  panel_plot()
+
+gg_wol_out_m <- wol_out %>%
   filter(cluster == "M") %>%
-  panel_plot
+  panel_plot()
 
-wol_out %>%
+gg_wol_out_s <- wol_out %>%
   filter(cluster == "S") %>%
-  panel_plot
+  panel_plot()
 
-wol_out %>%
-  filter(cluster == "A") %>%
-  panel_plot
+gg_wol_out_c <- wol_out %>%
+  filter(cluster == "C") %>%
+  panel_plot()
+
+ggsave(here("plots/gg_wol_out_a.png"), plot = gg_wol_out_a, width = 8, height = 10)
+ggsave(here("plots/gg_wol_out_m.png"), plot = gg_wol_out_m, width = 8, height = 10)
+ggsave(here("plots/gg_wol_out_s.png"), plot = gg_wol_out_s, width = 8, height = 10)
+ggsave(here("plots/gg_wol_out_c.png"), plot = gg_wol_out_c, width = 8, height = 10)
 
 # summarise parameter of interest
 perc_change <- 100 * (exp(intervention_effect) - 1)
-perc_change_draws <- calculate(perc_change, draws)
+perc_change_draws <- calculate(perc_change, values = draws)
 summary(perc_change_draws)
 
 perc_change_draws_vec <- as.matrix(perc_change_draws)[, 1]
 
 # posterior probability of a reduction
 mean(perc_change_draws_vec < 0)
-
 
 # 95% CI
 quantile(perc_change_draws_vec, c(0.025, 0.975))
@@ -165,13 +182,13 @@ intervention_label <- data.frame(
 )
 
 # plot only intervention sites
-wol_out %>%
+wol_out_intervention_site <- wol_out %>%
   # subset to and rename release sites
   mutate(
     release_site = location %in%
       c("MH", "SF", "SC", "AL", "AF", "SL")
   ) %>%
-  filter(release_site) %>% 
+  filter(release_site) %>%
   mutate(location = case_when(
     location == "MH" ~ "A. Mentari Court",
     location == "SF" ~ "B. Section 7 Flats",
@@ -186,12 +203,17 @@ wol_out %>%
          incidence_lower = 100000 * lower / population,
          incidence_upper = 100000 * upper / population) %>%
   # data for shaded regions
-  mutate(ymax = Inf * post_intervention) %>%
-  ggplot(aes(x = date, y = incidence_pred)) +
-  geom_area(aes(y = ymax),
-            alpha = 0.4,
-            fill = "light blue") +
-  geom_line(size = 0.25) + 
+  # mutate(ymax = Inf * post_intervention)
+  mutate(ymax = (max(incidence) + 50) * post_intervention,
+         .by = location)
+
+gg_wol_out_intervention_site <- ggplot(wol_out_intervention_site,
+         aes(x = date, y = incidence_pred)) +
+  geom_area(
+    aes(y = ymax),
+    alpha = 0.4,
+    fill = "lightblue") +
+  geom_line(size = 0.25) +
   geom_ribbon(aes(ymin = incidence_lower,
                   ymax = incidence_upper),
               linetype = 0,
@@ -201,17 +223,22 @@ wol_out %>%
     col = grey(0.2),
     size = 0.25
   ) +
-  scale_y_continuous("dengue incidence (per 100,000)", minor_breaks = NULL) + 
+  scale_y_continuous("dengue incidence (per 100,000)", minor_breaks = NULL) +
   xlab("") +
   facet_wrap(~location, ncol = 1, scales = "free") +
   geom_text(
     data = intervention_label,
     label = "post-release",
     size = 3.5
-  ) + 
+  ) +
   theme_minimal() +
   theme(strip.text = element_text(hjust = 0.5, size = 12))
 
-ggsave("Plot.png")
+ggsave(here("plots/final_plot.jpg"),
+       plot = gg_wol_out_intervention_site,
+       width = 8,
+       height = 10)
+
+# ggsave("Plot.png")
 
 save(list = ls(all = TRUE), file = "cache.rda")

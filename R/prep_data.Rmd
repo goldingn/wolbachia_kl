@@ -9,7 +9,7 @@ The case data came in a format that was not easy to analyse. This notebook refor
 library(tidyverse)
 library(readxl)
 library(lubridate)
-file <- "data/raw/Manuscript one modeling dataset additional 13Sep2019.xlsx"
+file <- here::here("data/raw/Manuscript one modeling dataset additional 13Sep2019.xlsx")
 ```
 
 The populations are listed in the first row of the third sheet *above* the column names, so require a little work to read them in.
@@ -50,7 +50,9 @@ This sheet contains the case numbers. Keep only the useful columns.
 wol <- read_xlsx(file, sheet = 3, skip = 2)
 wol <- wol[, !grepl("^\\.\\.", names(wol))]
 wol <- wol[-1, ]
-wol[] <- as.numeric(as.matrix(wol[]))
+
+# wol[] <- as.numeric(as.matrix(wol[]))
+wol <- wol %>% mutate(across(.cols = everything(), as.numeric))
 
 # replace long location names with short
 wol_cols <- colnames(wol)
@@ -106,7 +108,7 @@ wol %>%
 
 Read in the release dates, and add post-intervention status as a column.
 ```{r}
-releases <- read.csv("data/raw/release_dates.csv", stringsAsFactors = FALSE)
+releases <- read.csv(here::here("data/raw/release_dates.csv"), stringsAsFactors = FALSE)
 releases$release_date <- as.Date(releases$release_date)
 wol$post_intervention <- FALSE
 for (i in seq_len(nrow(releases))) {
@@ -162,6 +164,6 @@ The timeseries, incidence values and intervention dates look visually the same, 
 
 Save this as an rds object to load in later.
 ```{r}
-saveRDS(wol, "data/clean/wol.rds")
+saveRDS(wol, here::here("data/clean/wol.rds"))
 ```
 
