@@ -1,0 +1,13 @@
+## library() calls go here
+library(conflicted)
+library(dotenv)
+library(targets)
+library(tarchetypes)
+library(tidyverse)
+library(readxl)
+library(here)
+library(janitor)
+library(lubridate)
+library(stringr)
+conflicts_prefer(greta::`%*%`)
+conflicts_prefer(greta::poisson)

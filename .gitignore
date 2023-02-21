@@ -11,3 +11,6 @@
 *.png
 *.jpeg
 plots/
+*.pdf
+_targets/
+*.rda

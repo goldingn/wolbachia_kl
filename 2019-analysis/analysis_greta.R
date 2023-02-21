@@ -71,9 +71,9 @@ draws <- mcmc(m,
 draws <- extra_samples(draws, 2000)
 
 # save draws
-# readr::write_rds(draws, here("data/clean/wol_draws.rds"))
+readr::write_rds(draws, here("data/clean/wol_draws.rds"))
 # load draws
-# draws <- readr::read_rds(here("data/clean/wol_draws.rds"))
+draws <- readr::read_rds(here("data/clean/wol_draws.rds"))
 
 # check convergence
 plot(draws)
@@ -181,6 +181,8 @@ intervention_label <- data.frame(
   incidence_pred = 160
 )
 
+unique(wol_out$location)
+
 # plot only intervention sites
 wol_out_intervention_site <- wol_out %>%
   # subset to and rename release sites
@@ -204,7 +206,8 @@ wol_out_intervention_site <- wol_out %>%
          incidence_upper = 100000 * upper / population) %>%
   # data for shaded regions
   # mutate(ymax = Inf * post_intervention)
-  mutate(ymax = (max(incidence) + 50) * post_intervention,
+  # ggplot won't let you use Inf in geom_area anymore
+  mutate(ymax = (max(incidence) * 1.2) * post_intervention,
          .by = location)
 
 gg_wol_out_intervention_site <- ggplot(wol_out_intervention_site,
@@ -233,6 +236,8 @@ gg_wol_out_intervention_site <- ggplot(wol_out_intervention_site,
   ) +
   theme_minimal() +
   theme(strip.text = element_text(hjust = 0.5, size = 12))
+
+gg_wol_out_intervention_site
 
 ggsave(here("plots/final_plot.jpg"),
        plot = gg_wol_out_intervention_site,
