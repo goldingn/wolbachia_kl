@@ -19,9 +19,9 @@ read_release_site_info <- function(wolbachia_path) {
     mutate(
       across(
         c(
-          start_release,
-          stop_release,
-          last_monitoring
+          start_release
+          # stop_release,
+          # last_monitoring
           ),
         .fns = year_week_to_date
       )
