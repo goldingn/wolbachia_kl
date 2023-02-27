@@ -130,6 +130,25 @@ testResiduals(dharma)
 ```
 
 :::
+```{r}
+library(tidyverse)
+
+data <- iris %>% as_tibble()
+
+plots <- data %>%
+  group_nest(Species) %>% 
+  deframe() %>% 
+  map(., ~ {
+    ggplot(.x, aes(x = Sepal.Length, y = Sepal.Width)) + 
+      geom_point() +
+      theme_bw(
+        base_size = 18 # to increase the size of the plot elements
+      )
+  }) 
+
+```
+
+
 
 ## Preliminary paper results
 

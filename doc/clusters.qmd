@@ -1,0 +1,86 @@
+---
+title: "Comparing treatment to control across clusters"
+author: "Nicholas Tierney"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+format: html
+self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = FALSE)
+## target knits qmds in their own session, so load libraries here.
+source(here::here("packages.R"))
+## if you want access to the functions you've written
+lapply(list.files(here::here("./R"), full.names = TRUE), source)
+```
+
+```{r}
+#| label: load-targets
+#| include: false
+withr::with_dir(here::here(), {
+  tar_load(
+    c(
+      wolbachia_2023
+      )
+    )
+})
+```
+
+
+```{r}
+cluster_names <- c(na.omit(unique(wolbachia_2023$cluster)))
+cluster_plots <- map(
+  cluster_names,
+  plot_ts_cluster_figure,
+  wolbachia_2023 = wolbachia_2023
+) %>% 
+  setNames(cluster_names)
+```
+
+::: {.panel-tabset}
+
+```{r}
+#| results: asis
+#| fig-width: 8
+#| fig-height: 8
+
+iwalk(cluster_plots, ~ {
+  cat('## ', .y, '\n\n')
+  
+  print(.x)
+  
+  cat('\n\n')
+  
+})
+
+```
+
+:::
+
+
+
+## Reproducibility
+
+<details><summary>Reproducibility receipt</summary>
+
+```{r}
+## datetime
+Sys.time()
+
+## repository
+if(requireNamespace('git2r', quietly = TRUE)) {
+  git2r::repository()
+} else {
+  c(
+    system2("git", args = c("log", "--name-status", "-1"), stdout = TRUE),
+    system2("git", args = c("remote", "-v"), stdout = TRUE)
+  )
+}
+
+## session info
+sessionInfo()
+```
+
+</details>

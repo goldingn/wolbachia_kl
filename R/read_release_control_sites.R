@@ -13,8 +13,11 @@ read_release_control_sites <- function(wolbachia_path) {
     path = wolbachia_path,
     sheet = 2,
     .name_repair = janitor::make_clean_names
-  )
-
-  release_control_sites
+  ) %>%
+    mutate(
+      cluster = str_sub(final_kod, 1, 3),
+      .after = final_kod
+    ) %>%
+    distinct(ministry_code, .keep_all = TRUE)
 
 }

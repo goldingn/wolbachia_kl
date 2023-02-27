@@ -20,6 +20,10 @@ tidy_wolbachia <- function(
   release_control_sites
     ) {
 
+  release_control_sites_cluster <- release_control_sites %>%
+    select(ministry_code,
+           cluster)
+
   cases_joins <- cases %>%
     left_join(
       incidence,
@@ -36,6 +40,19 @@ tidy_wolbachia <- function(
     left_join(
       release_site_info,
       by = "ministry_code"
+    ) %>%
+    left_join(
+      release_control_sites_cluster,
+      by = "ministry_code"
+    )
+
+  wolbachia_freq_lookup <- release_site_info %>%
+    select(ministry_code, starts_with("fw")) %>%
+    pivot_longer(
+      cols = -ministry_code,
+      names_to = "intervention_stage",
+      values_to = "fw",
+      names_prefix = "fw_"
     )
 
   cases_joins %>%
@@ -44,6 +61,13 @@ tidy_wolbachia <- function(
       post_intervention = case_when(
         date > start_release ~ TRUE,
         .default = FALSE
+      ),
+      intervention_stage = case_when(
+        # need to add on the boundary condition
+        date <= start_release | is.na(start_release) ~ "prerelease",
+        date <= stop_release ~ "release",
+        date <= last_monitoring ~ "monitoring",
+        .default = "postmonitoring"
       ),
       .after = date
     ) %>%
@@ -56,6 +80,7 @@ tidy_wolbachia <- function(
       year,
       epid_week,
       ministry_code,
+      cluster,
       cases,
       incidence,
       population,
@@ -63,12 +88,31 @@ tidy_wolbachia <- function(
       date,
       location_id,
       start_release,
-      post_intervention
+      stop_release,
+      last_monitoring,
+      post_intervention,
+      intervention_stage
     ) %>%
   # there are some values that are missing where they hadn't yet recorded
   # dengue cases - we won't say that there were 0 cases, but we should drop
   # these observations. Since these are in long form we will only be removing
   # data for relevant rows
-    filter(!is.na(cases))
+    filter(!is.na(cases))  %>%
+    mutate(
+      intervention_site = str_detect(ministry_code,"^W")
+    ) %>%
+    left_join(
+      wolbachia_freq_lookup,
+      by = c("ministry_code",
+             "intervention_stage")
+    ) %>%
+      mutate(
+        fw = case_when(
+          !intervention_site ~ 0,
+          .default = fw
+        ),
+        fw = fw / 100
+      )
+
 
 }

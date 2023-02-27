@@ -1,0 +1,417 @@
+---
+title: "Data Analysis of Wolbachia Data using Frequency Wolbachia term"
+author: "Nick Tierney & Nick Golding"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+format: 
+  html:
+    toc: true
+    toc-location: left
+    code-fold: true
+    code-tools: true
+self-contained: true
+fig-format: "png"
+fig-dpi: 300
+fig-asp: 1.618
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE)
+## target knits qmds in their own session, so load libraries here.
+source(here::here("packages.R"))
+## if you want access to the functions you've written
+lapply(list.files(here::here("./R"), full.names = TRUE), source)
+```
+
+```{r}
+#| label: load-targets
+#| include: false
+withr::with_dir(here::here(), {
+  tar_load(
+    c(
+      release_site_info,
+      release_control_sites,
+      cases_lookup,
+      cases,
+      incidence_lookup,
+      incidence,
+      wolbachia_2023,
+      draws_fw,
+      means_fw,
+      wolbachia_2023_model_results_fw,
+      parameter_summary_fw,
+      perc_change_draws_fw_vec,
+      dharma_fw
+      )
+    )
+})
+```
+
+## The data
+
+```{r}
+#| label: show-data
+wolbachia_2023
+glimpse(wolbachia_2023)
+summary(wolbachia_2023)
+```
+
+## Dengue incidence in control and study sites, with credible intervals
+
+```{r}
+#| label: wolbachia-add-cluster
+wolbachia_2023_model_results_cluster_fw <- wolbachia_2023_model_results_fw %>% 
+  mutate(cluster = substr(ministry_code, 1, 1),
+         .after = ministry_code)
+```
+
+```{r}
+#| label: show-panel-plot-1
+#| fig-height: 50
+#| fig-width: 8
+wolbachia_2023_model_results_cluster_fw %>%
+    filter(cluster == "C") %>%
+    panel_plot()
+```
+
+```{r}
+#| label: show-panel-plot-2
+#| fig-height: 10
+#| fig-width: 8
+wolbachia_2023_model_results_cluster_fw %>%
+    filter(cluster == "W") %>%
+    panel_plot()
+```
+
+## MCMC Summary and Diagnostics
+
+We have just done some preliminary modelling with 1000 draws - the model takes a little while to fit (about 1 hour), so before we commit to more samples we wanted to present the results so far.
+
+### Trace plot and density
+
+```{r}
+#| label: plot-draws
+#| fig-height: 10
+#| fig-width: 8
+plot(draws_fw)
+```
+
+::: {.panel-tabset}
+
+### Draws Summary
+
+```{r}
+#| label: summary-chains
+summary(draws_fw)
+```
+
+### Gelman Diagnostic
+
+```{r}
+#| label: diagnostics
+coda::gelman.diag(draws_fw)
+```
+
+### Effective Sample Size
+
+```{r}
+#| label: diag-ess
+coda::effectiveSize(draws_fw)
+```
+
+### Dharma Residuals Test
+
+```{r}
+#| label: dharma-test
+#| fig-height: 3
+#| fig-width: 9
+testResiduals(dharma_fw)
+```
+
+:::
+
+## Preliminary paper results
+
+The posterior probability of a reduction due to intervention:
+
+```{r}
+#| label: post-prob-reduction
+#| code-fold: false
+# posterior probability of a reduction
+## these are calculated as:
+    # summarise parameter of interest
+    # perc_change <- 100 * (exp(intervention_effect) - 1)
+    # perc_change_draws <- calculate(perc_change, values = draws)
+    # summary(perc_change_draws)
+    # perc_change_draws_vec <- as.matrix(perc_change_draws)[, 1]
+
+post_prob_reduction_fw <- mean(perc_change_draws_fw_vec < 0)
+post_prob_reduction_fw
+```
+
+Quantiles and summary of the percentage change
+
+```{r}
+#| label: prob-quantiles
+#| code-fold: false
+# 95% CI
+quantile(perc_change_draws_fw_vec, c(0.025, 0.975))
+summary(perc_change_draws_fw_vec)
+```
+
+## Replication of "Figure 5" from 2019 paper
+
+Dengue Reduction following Wolbachia Releases
+
+```{r}
+#| label: paper-plot-prep
+intervention_label <- data.frame(
+    ministry_code = "W01",
+    date = as.Date("2020-09-01"),
+    incidence_pred = 500
+  )
+
+# plot only intervention sites
+wol_out_intervention_site_fw <- wolbachia_2023_model_results_fw %>%
+    # subset to and rename release sites
+    filter(str_detect(ministry_code, "^W")) %>%
+    # add incidence data (observed and expected)
+   mutate(incidence_pred = 100000 * post_pred_mean / population,
+          incidence_lower = 100000 * post_pred_lower / population,
+          incidence_upper = 100000 * post_pred_upper / population)
+```
+
+
+```{r}
+last_dates_fw <- wol_out_intervention_site_fw %>% 
+  select(ministry_code,
+         date) %>% 
+  group_by(ministry_code) %>% 
+  filter(date == max(date)) %>% 
+  ungroup()
+
+intervention_rectangle_fw <- wol_out_intervention_site_fw %>% 
+  select(ministry_code,
+         start_release) %>% 
+  distinct() %>% 
+  left_join(last_dates_fw,
+            by = "ministry_code") %>% 
+  rename(start_date = start_release,
+         finish_date = date)
+
+```
+
+```{r}
+# get this working for one plot
+wol_out_w1 <- wol_out_intervention_site_fw %>% 
+  filter(ministry_code %in% c("W01")) %>% 
+  group_by(ministry_code) %>% 
+  mutate(fw_alt = fw * max(incidence),
+         max_incidence = max(incidence),
+         .after = fw) %>% 
+  ungroup()
+
+max(wol_out_w1$incidence)
+
+ggplot(wol_out_w1,
+       aes(x = date, 
+           y = incidence_pred)) +
+    geom_line(linewidth = 0.25) +
+  geom_area(aes(y = fw_alt), fill = "lightblue", colour = "#83A4AE", alpha = 0.4) +
+  geom_point(
+      aes(x = date, y = incidence),
+      col = grey(0.2),
+      size = 0.25
+    ) +
+    geom_ribbon(aes(ymin = incidence_lower,
+                    ymax = incidence_upper),
+                linetype = 0,
+                alpha = 0.2) +
+    labs(
+      x = "",
+      y = "dengue incidence (per 100,000)"
+    ) +
+  scale_y_continuous(
+    minor_breaks = NULL,
+    sec.axis = sec_axis(~ . / max(wol_out_w1$incidence), name = "Wolbachia Frequency")
+  ) +
+    facet_wrap(~ministry_code, 
+               ncol = 1,
+               scales = "free") +
+    geom_text(
+      data = intervention_label,
+      label = "post-release",
+      size = 3.5
+    ) +
+    theme_minimal() +
+    theme(strip.text = element_text(hjust = 0.5, size = 12))
+
+```
+
+```{r}
+incidence_plot <- function(data){
+  intervention_label <- data.frame(
+    ministry_code = unique(data$ministry_code),
+    date = as.Date("2020-09-01"),
+    incidence_pred = 500
+  )
+  
+  scale_factor <- max(data$incidence_upper) * 1.05
+  
+  plot_data <- data %>% 
+    mutate(fw_alt = fw * max(incidence), .after = fw)
+  
+  ggp <- ggplot(plot_data,
+       aes(x = date, 
+           y = incidence_pred)) +
+    geom_line(linewidth = 0.25) +
+  geom_area(aes(y = fw_alt), 
+            fill = "lightblue", 
+            colour = "#83A4AE", 
+            alpha = 0.4) +
+  geom_point(
+      aes(x = date, y = incidence),
+      col = grey(0.2),
+      size = 0.25
+    ) +
+    geom_ribbon(aes(ymin = incidence_lower,
+                    ymax = incidence_upper),
+                linetype = 0,
+                alpha = 0.2) +
+    labs(
+      x = "",
+      y = "dengue incidence (per 100,000)"
+    ) +
+  scale_y_continuous(
+    minor_breaks = NULL,
+    limits = c(0, scale_factor),
+    breaks = scales::breaks_extended(n = 5),
+    sec.axis = sec_axis(~ .x / scale_factor, name = "Wolb. Freq.",
+                        breaks = c(0, 0.25, 0.5, 0.75,1)
+                        )
+  ) +
+    facet_wrap(~ministry_code, 
+               ncol = 1,
+               scales = "free") +
+    theme_minimal() +
+    theme(strip.text = element_text(hjust = 0.5, size = 12))
+  
+  ggp
+}
+```
+
+### plot as a list
+
+```{r}
+wol_out_intervention_site_fw %>%
+  filter(ministry_code == "W01") %>%
+  incidence_plot()
+
+wol_out_intervention_site_fw %>%
+  filter(ministry_code == "W02") %>%
+  incidence_plot()
+
+wol_out_intervention_site_fw %>%
+  filter(ministry_code == "W03") %>%
+  incidence_plot()
+
+wol_out_intervention_site_fw %>%
+  filter(ministry_code == "W03") %>%
+  incidence_plot()
+```
+
+
+```{r}
+wol_code_split <- split(wol_out_intervention_site_fw,
+                        wol_out_intervention_site_fw$ministry_code)
+
+incidence_plot_list <- map(wol_code_split, incidence_plot)
+incidence_plot_list
+
+# library(cowplot)
+# 
+# plot_grid(plotlist = incidence_plot_list, ncol = 1)
+# pp <- plot_grid(p0, p1, ncol=1, rel_heights=c(0.1, 1))
+```
+
+
+### using patchwork
+
+```{r}
+#| label: paper-plot
+#| fig-height: 40
+#| fig-width: 6
+
+library(patchwork)
+patchwork::wrap_plots(
+  incidence_plot_list,
+  ncol = 1,
+  guides = "collect"
+  )
+# gg_wol_out_intervention_site_fw <- ggplot(wol_out_intervention_site_fw,
+#                                          aes(x = date, 
+#                                              y = incidence_pred)) +
+#   geom_rect(
+#     data = intervention_rectangle_fw,
+#     inherit.aes = FALSE,
+#     aes(ymin = 0,
+#         ymax = Inf,
+#         xmin = start_date,
+#         xmax = finish_date),
+#       alpha = 0.4,
+#       fill = "lightblue") +
+#     geom_line(linewidth = 0.25) +
+#     geom_ribbon(aes(ymin = incidence_lower,
+#                     ymax = incidence_upper),
+#                 linetype = 0,
+#                 alpha = 0.2) +
+#     geom_point(
+#       aes(x = date, y = incidence),
+#       col = grey(0.2),
+#       size = 0.25
+#     ) +
+#     scale_y_continuous(minor_breaks = NULL) +
+#     labs(
+#       x = "",
+#       y = "dengue incidence (per 100,000)"
+#     ) +
+#     facet_wrap(~ministry_code, 
+#                ncol = 1,
+#                scales = "free") +
+#     geom_text(
+#       data = intervention_label,
+#       label = "post-release",
+#       size = 3.5
+#     ) +
+#     theme_minimal() +
+#     theme(strip.text = element_text(hjust = 0.5, size = 12))
+# 
+#   gg_wol_out_intervention_site_fw
+
+```
+
+
+## Reproducibility
+
+<details><summary>Reproducibility receipt</summary>
+
+```{r}
+## datetime
+Sys.time()
+
+## repository
+if(requireNamespace('git2r', quietly = TRUE)) {
+  git2r::repository()
+} else {
+  c(
+    system2("git", args = c("log", "--name-status", "-1"), stdout = TRUE),
+    system2("git", args = c("remote", "-v"), stdout = TRUE)
+  )
+}
+
+## session info
+sessionInfo()
+```
+
+</details>
