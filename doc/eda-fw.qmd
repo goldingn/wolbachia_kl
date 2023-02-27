@@ -286,10 +286,12 @@ incidence_plot <- function(data){
   scale_y_continuous(
     minor_breaks = NULL,
     limits = c(0, scale_factor),
-    breaks = scales::breaks_extended(n = 5),
-    sec.axis = sec_axis(~ .x / scale_factor, name = "Wolb. Freq.",
-                        breaks = c(0, 0.25, 0.5, 0.75,1)
-                        )
+    n.breaks = 5,
+    sec.axis = sec_axis(
+      trans = ~ .x / scale_factor, 
+      name = "Wolb. Freq.",
+      breaks = c(0, 0.25, 0.5, 0.75, 1),
+      )
   ) +
     facet_wrap(~ministry_code, 
                ncol = 1,
