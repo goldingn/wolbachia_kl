@@ -260,7 +260,7 @@ incidence_plot <- function(data){
   scale_factor <- max(data$incidence_upper) * 1.05
   
   plot_data <- data %>% 
-    mutate(fw_alt = fw * max(incidence), .after = fw)
+    mutate(fw_alt = fw * max(incidence_upper), .after = fw)
   
   ggp <- ggplot(plot_data,
        aes(x = date, 
@@ -288,7 +288,7 @@ incidence_plot <- function(data){
     limits = c(0, scale_factor),
     n.breaks = 5,
     sec.axis = sec_axis(
-      trans = ~ .x / scale_factor, 
+      trans = ~ . / scale_factor, 
       name = "Wolb. Freq.",
       breaks = c(0, 0.25, 0.5, 0.75, 1),
       )
