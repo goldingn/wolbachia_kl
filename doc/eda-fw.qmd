@@ -162,7 +162,7 @@ summary(perc_change_draws_fw_vec)
 
 ## Replication of "Figure 5" from 2019 paper
 
-Dengue Reduction following Wolbachia Releases
+Dengue reduction following Wolbachia releases (release Wolbachia frequency marked by the blue area)
 
 ```{r}
 #| label: paper-plot-prep
@@ -203,7 +203,6 @@ intervention_rectangle_fw <- wol_out_intervention_site_fw %>%
 ```
 
 ```{r}
-#playground
 gg_breaks_default <- function(data, var){
   d_range <- data %>% 
     summarise(
@@ -213,11 +212,7 @@ gg_breaks_default <- function(data, var){
   labeling::extended(d_range$min, d_range$max, m = 5)
 }
 # gg_breaks_default(mtcars, cyl)
-# gg_breaks_default(mtcars, mpg)
 # 
-seq(0, 100, length.out = 5)
-seq(0, 1249, length.out = 5)
-
 # wol_out_intervention_site_fw %>%
 #   filter(ministry_code == "W02") %>% 
 #   gg_breaks_default(incidence_upper)
@@ -233,8 +228,7 @@ incidence_plot <- function(data){
     incidence_pred = 500
   )
   
-  # scale_factor <- max(data$incidence_upper) * 1.05
-  scale_factor <- max(gg_breaks_default(data,incidence_upper))
+  scale_factor <- max(gg_breaks_default(data,incidence_upper)) 
   
   plot_data <- data %>% 
     mutate(fw_alt = fw * scale_factor, .after = fw)
@@ -258,11 +252,11 @@ incidence_plot <- function(data){
                 alpha = 0.2) +
     labs(
       x = "",
-      y = "dengue incidence (per 100,000)"
+      y = "Dengue Incidence (per 100,000)"
     ) +
   scale_y_continuous(
     minor_breaks = NULL,
-    limits = c(0, scale_factor),
+    # limits = c(0, scale_factor),
     breaks = seq(0, scale_factor, length.out = 5),
     n.breaks = 5,
     sec.axis = sec_axis(
@@ -275,46 +269,26 @@ incidence_plot <- function(data){
                ncol = 1,
                scales = "free") +
     theme_minimal() +
-    theme(strip.text = element_text(hjust = 0.5, size = 12))
+    theme(strip.text = element_text(hjust = 0.5, size = 12)) +
+    coord_cartesian(ylim = c(0, scale_factor*1.2))
   
   ggp
 }
 ```
 
-### plot as a list
-
 ```{r}
+#| label: paper-plot-map
+
 # wol_out_intervention_site_fw %>%
 #   filter(ministry_code == "W01") %>%
 #   incidence_plot()
-# 
-# wol_out_intervention_site_fw
-# 
-# wol_out_intervention_site_fw %>%
-#   filter(ministry_code == "W02") %>%
-#   incidence_plot()
-# 
-# wol_out_intervention_site_fw %>%
-#   filter(ministry_code == "W03") %>%
-#   incidence_plot()
-# 
-# wol_out_intervention_site_fw %>%
-#   filter(ministry_code == "W04") %>%
-#   incidence_plot()
-```
 
-
-```{r}
-#| label: paper-plot-map
 wol_code_split <- split(wol_out_intervention_site_fw,
                         wol_out_intervention_site_fw$ministry_code)
 
 incidence_plot_list <- map(wol_code_split, incidence_plot)
 
 ```
-
-
-### using patchwork
 
 ```{r}
 #| label: paper-plot
@@ -327,45 +301,6 @@ patchwork::wrap_plots(
   ncol = 1,
   guides = "collect"
   )
-# gg_wol_out_intervention_site_fw <- ggplot(wol_out_intervention_site_fw,
-#                                          aes(x = date, 
-#                                              y = incidence_pred)) +
-#   geom_rect(
-#     data = intervention_rectangle_fw,
-#     inherit.aes = FALSE,
-#     aes(ymin = 0,
-#         ymax = Inf,
-#         xmin = start_date,
-#         xmax = finish_date),
-#       alpha = 0.4,
-#       fill = "lightblue") +
-#     geom_line(linewidth = 0.25) +
-#     geom_ribbon(aes(ymin = incidence_lower,
-#                     ymax = incidence_upper),
-#                 linetype = 0,
-#                 alpha = 0.2) +
-#     geom_point(
-#       aes(x = date, y = incidence),
-#       col = grey(0.2),
-#       size = 0.25
-#     ) +
-#     scale_y_continuous(minor_breaks = NULL) +
-#     labs(
-#       x = "",
-#       y = "dengue incidence (per 100,000)"
-#     ) +
-#     facet_wrap(~ministry_code, 
-#                ncol = 1,
-#                scales = "free") +
-#     geom_text(
-#       data = intervention_label,
-#       label = "post-release",
-#       size = 3.5
-#     ) +
-#     theme_minimal() +
-#     theme(strip.text = element_text(hjust = 0.5, size = 12))
-# 
-#   gg_wol_out_intervention_site_fw
 
 ```
 
