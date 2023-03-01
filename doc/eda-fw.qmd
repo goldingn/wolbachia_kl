@@ -203,51 +203,27 @@ intervention_rectangle_fw <- wol_out_intervention_site_fw %>%
 ```
 
 ```{r}
-# get this working for one plot
-wol_out_w1 <- wol_out_intervention_site_fw %>% 
-  filter(ministry_code %in% c("W01")) %>% 
-  group_by(ministry_code) %>% 
-  mutate(fw_alt = fw * max(incidence),
-         max_incidence = max(incidence),
-         .after = fw) %>% 
-  ungroup()
+#playground
+gg_breaks_default <- function(data, var){
+  d_range <- data %>% 
+    summarise(
+      min = min( {{ var }}),
+      max = max( {{ var }})
+    )
+  labeling::extended(d_range$min, d_range$max, m = 5)
+}
+# gg_breaks_default(mtcars, cyl)
+# gg_breaks_default(mtcars, mpg)
+# 
+seq(0, 100, length.out = 5)
+seq(0, 1249, length.out = 5)
 
-max(wol_out_w1$incidence)
-
-ggplot(wol_out_w1,
-       aes(x = date, 
-           y = incidence_pred)) +
-    geom_line(linewidth = 0.25) +
-  geom_area(aes(y = fw_alt), fill = "lightblue", colour = "#83A4AE", alpha = 0.4) +
-  geom_point(
-      aes(x = date, y = incidence),
-      col = grey(0.2),
-      size = 0.25
-    ) +
-    geom_ribbon(aes(ymin = incidence_lower,
-                    ymax = incidence_upper),
-                linetype = 0,
-                alpha = 0.2) +
-    labs(
-      x = "",
-      y = "dengue incidence (per 100,000)"
-    ) +
-  scale_y_continuous(
-    minor_breaks = NULL,
-    sec.axis = sec_axis(~ . / max(wol_out_w1$incidence), name = "Wolbachia Frequency")
-  ) +
-    facet_wrap(~ministry_code, 
-               ncol = 1,
-               scales = "free") +
-    geom_text(
-      data = intervention_label,
-      label = "post-release",
-      size = 3.5
-    ) +
-    theme_minimal() +
-    theme(strip.text = element_text(hjust = 0.5, size = 12))
+# wol_out_intervention_site_fw %>%
+#   filter(ministry_code == "W02") %>% 
+#   gg_breaks_default(incidence_upper)
 
 ```
+
 
 ```{r}
 incidence_plot <- function(data){
@@ -257,10 +233,11 @@ incidence_plot <- function(data){
     incidence_pred = 500
   )
   
-  scale_factor <- max(data$incidence_upper) * 1.05
+  # scale_factor <- max(data$incidence_upper) * 1.05
+  scale_factor <- max(gg_breaks_default(data,incidence_upper))
   
   plot_data <- data %>% 
-    mutate(fw_alt = fw * max(incidence_upper), .after = fw)
+    mutate(fw_alt = fw * scale_factor, .after = fw)
   
   ggp <- ggplot(plot_data,
        aes(x = date, 
@@ -286,6 +263,7 @@ incidence_plot <- function(data){
   scale_y_continuous(
     minor_breaks = NULL,
     limits = c(0, scale_factor),
+    breaks = seq(0, scale_factor, length.out = 5),
     n.breaks = 5,
     sec.axis = sec_axis(
       trans = ~ . / scale_factor, 
@@ -306,35 +284,33 @@ incidence_plot <- function(data){
 ### plot as a list
 
 ```{r}
-wol_out_intervention_site_fw %>%
-  filter(ministry_code == "W01") %>%
-  incidence_plot()
-
-wol_out_intervention_site_fw %>%
-  filter(ministry_code == "W02") %>%
-  incidence_plot()
-
-wol_out_intervention_site_fw %>%
-  filter(ministry_code == "W03") %>%
-  incidence_plot()
-
-wol_out_intervention_site_fw %>%
-  filter(ministry_code == "W03") %>%
-  incidence_plot()
+# wol_out_intervention_site_fw %>%
+#   filter(ministry_code == "W01") %>%
+#   incidence_plot()
+# 
+# wol_out_intervention_site_fw
+# 
+# wol_out_intervention_site_fw %>%
+#   filter(ministry_code == "W02") %>%
+#   incidence_plot()
+# 
+# wol_out_intervention_site_fw %>%
+#   filter(ministry_code == "W03") %>%
+#   incidence_plot()
+# 
+# wol_out_intervention_site_fw %>%
+#   filter(ministry_code == "W04") %>%
+#   incidence_plot()
 ```
 
 
 ```{r}
+#| label: paper-plot-map
 wol_code_split <- split(wol_out_intervention_site_fw,
                         wol_out_intervention_site_fw$ministry_code)
 
 incidence_plot_list <- map(wol_code_split, incidence_plot)
-incidence_plot_list
 
-# library(cowplot)
-# 
-# plot_grid(plotlist = incidence_plot_list, ncol = 1)
-# pp <- plot_grid(p0, p1, ncol=1, rel_heights=c(0.1, 1))
 ```
 
 
@@ -342,7 +318,7 @@ incidence_plot_list
 
 ```{r}
 #| label: paper-plot
-#| fig-height: 40
+#| fig-height: 80
 #| fig-width: 6
 
 library(patchwork)

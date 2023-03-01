@@ -3,35 +3,38 @@
 #' .. content for \details{} ..
 #'
 #' @title
-#' @param means_fw
+#' @param greta_analysis
 #' @param wolbachia_2023
 #' @return
 #' @author njtierney
 #' @export
-add_greta_model_summaries <- function(means_fw, wolbachia_2023) {
+add_greta_model_summaries <- function(greta_analysis, wolbachia_2023) {
 
-  wolbachia_2023 <- wolbachia_2023 %>% drop_na(fw)
+  means <- greta_analysis$means
 
   # dims are 4 * n_samples x 43848 (nrows in data)
-  y_preds_fw <- means_fw * NA
-  y_preds_fw[] <- rpois(prod(dim(means_fw)), means_fw[])
+  y_preds <- means * NA
+  y_preds[] <- rpois(prod(dim(means)), means[])
 
   # timeseries plots of posterior predictive distribution
-  y_means_fw <- colMeans(y_preds_fw)
-  y_CIs_fw <- apply(y_preds_fw, 2, quantile, c(0.025, 0.975))
+  y_means <- colMeans(y_preds)
+  y_CIs <- apply(y_preds, 2, quantile, c(0.025, 0.975))
 
   # plot model fit (and data) for paper
-  means_CI_fw <- apply(means_fw, 2, quantile, c(0.025, 0.975))
-  means_mean_fw <- colMeans(means_fw)
+  means_CI <- apply(means, 2, quantile, c(0.025, 0.975))
+  means_mean <- colMeans(means)
 
-  wolbachia_2023_model_results_fw <- wolbachia_2023 %>%
+  wolbachia_2023_model_results <- wolbachia_2023 %>%
     mutate(
-      post_pred_lower = y_CIs_fw[1, ],
-      post_pred_upper = y_CIs_fw[2, ],
-      post_pred_mean = y_means_fw,
-      model_lower = means_CI_fw[1, ],
-      model_upper = means_CI_fw[2, ],
-      model_mean = means_mean_fw
+      post_pred_lower = y_CIs[1, ],
+      post_pred_upper = y_CIs[2, ],
+      post_pred_mean = y_means,
+      model_lower = means_CI[1, ],
+      model_upper = means_CI[2, ],
+      model_mean = means_mean
     )
+
+  wolbachia_2023_model_results
+
 
 }

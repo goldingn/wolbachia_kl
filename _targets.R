@@ -83,7 +83,7 @@ tar_plan(
   perc_change_draws_fw_vec = read_rds(perc_change_draws_fw_vec_path),
 
   ### - some post processing of greta fw
-  wolbachia_2023_model_results_fw = add_greta_model_summaries(
+  wolbachia_2023_model_results_fw = add_greta_model_summaries_fw(
     means_fw,
     wolbachia_2023
   ),

@@ -17,13 +17,6 @@ analysis_greta <- function(wolbachia_2023,
                           Lmin,
                           Lmax) {
 
-  wolbachia_2023 <- targets::tar_read(wolbachia_2023)
-  n_warmup <- 1000
-  n_samples <- 1000
-  n_extra_draws <- 1000
-  Lmin <- 30
-  Lmax <- 40
-
   n_times <- max(wolbachia_2023$week_id)
   n_sites <- max(wolbachia_2023$location_id)
 
@@ -88,16 +81,6 @@ analysis_greta <- function(wolbachia_2023,
   # # do posterior simulations (calculate size and prob, stick in rnbinom), summarise and plot as in INLA analysis
   means <- as.matrix(calculate(mean, values = draws))
 
-  # dims are 4 * n_samples x 43848 (nrows in data)
-  y_preds <- means * NA
-  y_preds[] <- rpois(prod(dim(means)), means[])
-
-  ## data prep for plotting ---
-
-  # timeseries plots of posterior predictive distribution
-  y_means <- colMeans(y_preds)
-  y_CIs <- apply(y_preds, 2, quantile, c(0.025, 0.975))
-
   # summarise parameter of interest
   perc_change <- 100 * (exp(intervention_effect) - 1)
   perc_change_draws <- calculate(perc_change, values = draws)
@@ -105,24 +88,9 @@ analysis_greta <- function(wolbachia_2023,
 
   perc_change_draws_vec <- as.matrix(perc_change_draws)[, 1]
 
-  # plot model fit (and data) for paper
-  means_CI <- apply(means, 2, quantile, c(0.025, 0.975))
-  means_mean <- colMeans(means)
-
-  wolbachia_2023_model_results <- wolbachia_2023 %>%
-    mutate(
-      post_pred_lower = y_CIs[1, ],
-      post_pred_upper = y_CIs[2, ],
-      post_pred_mean = y_means,
-      model_lower = means_CI[1, ],
-      model_upper = means_CI[2, ],
-      model_mean = means_mean
-    )
-
   tibble::lst(
     draws,
     means,
-    wolbachia_2023_model_results,
     parameter_summary,
     perc_change_draws_vec
   )
