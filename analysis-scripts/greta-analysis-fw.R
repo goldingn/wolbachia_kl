@@ -44,7 +44,18 @@ baseline_effect_vec <- temporal_trends[idx] +
 # intervention effect
 # scaled by fw
 intervention_effect_fw <- normal(0, 10)
-intervention_fw_vec <- intervention_effect_fw * wolbachia_2023$fw
+
+# log1p(expm1(intervention_effect_fw) * fw[it])
+# intervention_fw_vec <- intervention_effect_fw * wolbachia_2023$fw
+# We are applying a scaling on the proportional change scale
+# so when fw is 0, the proportional change is 0
+# so when fw is 1, the proportional change its full effect
+# so when fw is 0.25, the proportional change is 25% of the full effect
+# expm1 is moving us from the log of the multiplier to the proportional change
+# and log1p moves us back the other way
+intervention_fw_vec <- log1p(
+  expm1(intervention_effect_fw) * wolbachia_2023$fw
+)
 
 # combine into linear predictor
 eta <- baseline_effect_vec + intervention_fw_vec
@@ -87,6 +98,7 @@ toc()
 
 # summarise parameter of interest
 perc_change_fw <- 100 * (exp(intervention_effect_fw) - 1)
+
 perc_change_draws_fw <- calculate(perc_change_fw, values = draws_fw)
 parameter_summary_fw <- summary(perc_change_draws_fw)
 
@@ -113,10 +125,10 @@ write_rds(
   here("analysis-results/perc_change_draws_fw_vec.rds")
 )
 
-
-###
-
-write_rds(
-  wolbachia_2023_model_results_fw,
-  here("analysis-results/wolbachia_2023_model_results_fw.rds")
-)
+#
+# ###
+#
+# write_rds(
+#   wolbachia_2023_model_results_fw,
+#   here("analysis-results/wolbachia_2023_model_results_fw.rds")
+# )

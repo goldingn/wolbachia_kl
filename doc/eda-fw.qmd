@@ -30,14 +30,11 @@ lapply(list.files(here::here("./R"), full.names = TRUE), source)
 withr::with_dir(here::here(), {
   tar_load(
     c(
-      release_site_info,
-      release_control_sites,
-      cases_lookup,
-      cases,
-      incidence_lookup,
-      incidence,
       wolbachia_2023,
-      draws_fw,
+      draws_fw_summary,
+      draws_fw_plot_path,
+      draws_fw_diag_gelman,
+      draws_fw_diag_ess,
       means_fw,
       wolbachia_2023_model_results_fw,
       parameter_summary_fw,
@@ -94,7 +91,7 @@ We have just done some preliminary modelling with 1000 draws - the model takes a
 #| label: plot-draws
 #| fig-height: 10
 #| fig-width: 8
-plot(draws_fw)
+knitr::include_graphics(draws_fw_plot_path)
 ```
 
 ::: {.panel-tabset}
@@ -103,21 +100,21 @@ plot(draws_fw)
 
 ```{r}
 #| label: summary-chains
-summary(draws_fw)
+draws_fw_summary
 ```
 
 ### Gelman Diagnostic
 
 ```{r}
 #| label: diagnostics
-coda::gelman.diag(draws_fw)
+draws_fw_diag_gelman
 ```
 
 ### Effective Sample Size
 
 ```{r}
 #| label: diag-ess
-coda::effectiveSize(draws_fw)
+draws_fw_diag_ess
 ```
 
 ### Dharma Residuals Test

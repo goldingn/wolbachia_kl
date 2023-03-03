@@ -98,6 +98,19 @@ tar_plan(
     means_fw
   ),
 
+  tar_file(draws_fw_plot_path, {
+    base_plot_write_path(
+      data = draws_fw,
+      path = here("plots/draws_fw_plot.png"),
+      width = 8,
+      height = 10
+    )
+  }),
+
+  draws_fw_summary = summary(draws_fw),
+  draws_fw_diag_gelman = gelman.diag(draws_fw),
+  draws_fw_diag_ess = effectiveSize(draws_fw),
+
   tar_quarto(eda_fw, "doc/eda-fw.qmd"),
   ### - end using fw term
 
