@@ -43,7 +43,7 @@ baseline_effect_vec <- temporal_trends[idx] +
 
 # intervention effect
 # scaled by fw
-intervention_effect_fw <- normal(0, 10)
+intervention_effect_fw <- normal(0, 1)
 
 # log1p(expm1(intervention_effect_fw) * fw[it])
 # intervention_fw_vec <- intervention_effect_fw * wolbachia_2023$fw
