@@ -46,34 +46,34 @@ tar_plan(
   #
   ### ---
 
-  tar_file(draws_path, here("analysis-results/draws.rds")),
-  tar_file(means_path, here("analysis-results/means.rds")),
-  tar_file(wolbachia_results_path, here("analysis-results/wolbachia_2023_model_results.rds")),
-  tar_file(parameter_summary_path, here("analysis-results/parameter_summary.rds")),
-  tar_file(perc_change_draws_vec_path, here("analysis-results/perc_change_draws_vec.rds")),
-  draws = read_rds(draws_path),
-  means = read_rds(means_path),
-  wolbachia_2023_model_results = read_rds(wolbachia_results_path),
-  parameter_summary = read_rds(parameter_summary_path),
-  perc_change_draws_vec = read_rds(perc_change_draws_vec_path),
-
-  tar_file(wolbachia_2023_model_results_path,{
-    write_csv_return_path(wolbachia_2023_model_results,
-                          "data/clean/wolbachia_2023_model_results.csv")
-  }),
-
-  dharma = greta_dharma(
-    wolbachia_2023,
-    means
-    ),
-
-  tar_quarto(eda, "doc/eda.qmd"),
+  # tar_file(draws_path, here("analysis-results/draws.rds")),
+  # tar_file(means_path, here("analysis-results/means.rds")),
+  # tar_file(wolbachia_results_path, here("analysis-results/wolbachia_2023_model_results.rds")),
+  # tar_file(parameter_summary_path, here("analysis-results/parameter_summary.rds")),
+  # tar_file(perc_change_draws_vec_path, here("analysis-results/perc_change_draws_vec.rds")),
+  # draws = read_rds(draws_path),
+  # means = read_rds(means_path),
+  # wolbachia_2023_model_results = read_rds(wolbachia_results_path),
+  # parameter_summary = read_rds(parameter_summary_path),
+  # perc_change_draws_vec = read_rds(perc_change_draws_vec_path),
+  #
+  # tar_file(wolbachia_2023_model_results_path,{
+  #   write_csv_return_path(wolbachia_2023_model_results,
+  #                         "data/clean/wolbachia_2023_model_results.csv")
+  # }),
+  #
+  # dharma = greta_dharma(
+  #   wolbachia_2023,
+  #   means
+  #   ),
+  #
+  # tar_quarto(eda, "doc/eda.qmd"),
 
   ### - using fw term ----
 
   tar_file(draws_fw_path, here("analysis-results/draws_fw.rds")),
   tar_file(means_fw_path, here("analysis-results/means_fw.rds")),
-  tar_file(wolbachia_results_fw_path, here("analysis-results/wolbachia_2023_model_results_fw.rds")),
+  # tar_file(wolbachia_results_fw_path, here("analysis-results/wolbachia_2023_model_results_fw.rds")),
   tar_file(parameter_summary_fw_path, here("analysis-results/parameter_summary_fw.rds")),
   tar_file(perc_change_draws_fw_vec_path, here("analysis-results/perc_change_draws_fw_vec.rds")),
   draws_fw = read_rds(draws_fw_path),
