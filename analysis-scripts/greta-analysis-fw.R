@@ -84,7 +84,6 @@ distribution(wolbachia_2023$cases) <- poisson(mean)
 
 m <- model(intervention_effect_fw, rho, sigma)
 
-library(tictoc)
 tic()
 draws_fw <- mcmc(
   m,
